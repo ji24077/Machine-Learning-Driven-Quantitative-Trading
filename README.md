@@ -19,12 +19,16 @@ We collect **financial data** from sources such as **FactSet and Yahoo Finance**
 ### 1. Technical Analysis-Based Strategy
 - Uses **Moving Average (MA)** and **Risk-Based Indicators** (e.g., ATR, VaR, MDD) to generate buy/sell signals.
 - Final **Technical Signal:**
-  \[ f_{technical} = w_1 \cdot F_{MA} + w_2 \cdot F_{Risk} \in \{-1, 0, +1\} \]
+  $$
+  f_{technical} = w_1 \cdot F_{MA} + w_2 \cdot F_{Risk} \in \{-1, 0, +1\}
+  $$
 
 ### 2. Hybrid Trading Strategy
 - Extends **Technical Analysis** by integrating **Macroeconomic Events** to refine trading decisions.
 - Final **Hybrid Signal:**
-  \[ f_{hybrid} = w_1 \cdot F_{MA} + w_2 \cdot F_{Risk} + w_3 \cdot F_{Econ} \in \{-1, 0, +1\} \]
+  $$
+  f_{hybrid} = w_1 \cdot F_{MA} + w_2 \cdot F_{Risk} + w_3 \cdot F_{Econ} \in \{-1, 0, +1\}
+  $$
 
 ## Backtesting & Optimization
 The strategy is validated using **backtesting** across multiple timeframes:
