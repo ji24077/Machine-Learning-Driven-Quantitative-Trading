@@ -17,34 +17,24 @@ We collect **financial data** from sources such as **FactSet and Yahoo Finance**
 
 ## Trading Strategies
 ### 1. Probability-Based Technical Strategy
-Instead of fixed signals, each function returns a probability score \( P \) in the range \([0,1]\), which is optimized dynamically. The final trading signal \( f \) is determined based on probability outputs:
+Instead of fixed signals, each function returns a probability score **P** in the range **[0,1]**, which is optimized dynamically. The final trading signal **f** is determined based on probability outputs:
 
-\[
-P_{MA} = \sigma(\lambda_{MA} (Short_{MA} - Long_{MA}))
-\]
+<img src="https://latex.codecogs.com/png.image?\dpi{110} P_{MA} = \sigma(\lambda_{MA} (Short_{MA} - Long_{MA}))" />
 
-\[
-P_{Risk} = \sigma(\lambda_{Risk} (VaR - ATR) + Outlier_{score})
-\]
+<img src="https://latex.codecogs.com/png.image?\dpi{110} P_{Risk} = \sigma(\lambda_{Risk} (VaR - ATR) + Outlier_{score})" />
 
 where \( \sigma(x) = \frac{1}{1+e^{-x}} \) is the sigmoid function, and \( \lambda_{MA}, \lambda_{Risk} \) are adaptive scaling parameters optimized across multiple timeframes.
 
-\textbf{Final Technical Signal:}
-\[
-f_{technical} = w_1 \cdot P_{MA} + w_2 \cdot P_{Risk}
-\]
+**Final Technical Signal:**
+<img src="https://latex.codecogs.com/png.image?\dpi{110} f_{technical} = w_1 \cdot P_{MA} + w_2 \cdot P_{Risk}" />
 
 ### 2. Probability-Based Hybrid Strategy
 We extend **Technical Analysis** by integrating **Macroeconomic Events** to refine trading decisions:
 
-\[
-P_{Econ} = \sigma(\lambda_{Econ} (GDP - Interest_{Rate}))
-\]
+<img src="https://latex.codecogs.com/png.image?\dpi{110} P_{Econ} = \sigma(\lambda_{Econ} (GDP - Interest_{Rate}))" />
 
-\textbf{Final Hybrid Signal:}
-\[
-f_{hybrid} = w_1 \cdot P_{MA} + w_2 \cdot P_{Risk} + w_3 \cdot P_{Econ}
-\]
+**Final Hybrid Signal:**
+<img src="https://latex.codecogs.com/png.image?\dpi{110} f_{hybrid} = w_1 \cdot P_{MA} + w_2 \cdot P_{Risk} + w_3 \cdot P_{Econ}" />
 
 The final trading decision follows:
 - \( f < -T_{adaptive} \) → **Sell (-1)**
