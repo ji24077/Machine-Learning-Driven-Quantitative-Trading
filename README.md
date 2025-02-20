@@ -45,7 +45,7 @@ $$ P_{MA} = \sigma(\lambda_{MA} (Short_{MA} - Long_{MA})) $$
 
 $$ \sigma(x) = \frac{1}{1+e^{-x}} $$ 
 
-$$  \lambda_{MA}, \lambda_{Risk} are adjusted dynaically $$ 
+$$  \lambda_{MA}, \lambda_{Risk} =  adjusted \ dynaically $$ 
 
 **Final Technical Signal:**
 
