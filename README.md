@@ -39,7 +39,9 @@ $$ P_{MA} = \sigma(\lambda_{MA} (Short_{MA} - Long_{MA})) $$
 $$ P_{Risk} = \sigma(\lambda_{Risk} (VaR - ATR) + Outlier_{score}) $$
 
 Where:
-$$ \sigma(x) = \frac{1}{1+e^{-x}} $$ is the **sigmoid activation function**.
+$$ P_{MA} = \sigma(\lambda_{MA} (Short_{MA} - Long_{MA})) $$
+
+$ \sigma(x) = \frac{1}{1+e^{-x}} $$ is the **sigmoid activation function**.
 - \( \lambda_{MA}, \lambda_{Risk} \) are **adaptive probability scaling parameters**, optimized dynamically.
 
 **Final Technical Signal:**
