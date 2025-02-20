@@ -40,9 +40,6 @@ $$ P_{Risk} = \sigma(\lambda_{Risk} (VaR - ATR) + Outlier_{score}) $$
 
 Where:
 
-
-$$ P_{MA} = \sigma(\lambda_{MA} (Short_{MA} - Long_{MA})) $$
-
 $$ \sigma(x) = \frac{1}{1+e^{-x}} $$ 
 
 $$  \lambda_{MA}, \lambda_{Risk} =  adjusted \ dynamically $$ 
