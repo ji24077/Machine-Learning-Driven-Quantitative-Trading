@@ -1,83 +1,83 @@
 # Machine Learning Driven Quantitative Trading
 
-이 프로젝트는 기술적 지표, 리스크 관리, 그리고 경제 이벤트 기반 분석을 통합한 하이브리드 트레이딩 전략을 개발합니다. 과거 Sharpe Ratio와 Win/Loss Ratio를 기반으로 파라미터를 동적으로 조정하여 다양한 시장 상황에서 수익성과 안정성을 최적화하는 것을 목표로 합니다.
+This project develops a hybrid trading strategy that integrates technical indicators, risk management, and economic event-based analysis. By dynamically adapting parameters based on historical Sharpe Ratio and Win/Loss Ratio, our approach aims to maximize profitability while ensuring stability across different market conditions.
 
-## 프로젝트 구조
+## Project Structure
 
 ```
 Machine-Learning-Driven-Quantitative-Trading/
 ├── data/
-│   ├── raw/             # 원본 데이터 저장
-│   └── processed/       # 전처리된 데이터 저장
+│   ├── raw/             # Raw data storage
+│   └── processed/       # Processed data storage
 ├── src/
-│   ├── data_collection/ # 데이터 수집 관련 코드
+│   ├── data_collection/ # Data collection code
 │   │   ├── __init__.py
-│   │   ├── data_collection_yahoo.py  # Yahoo Finance 데이터 수집
-│   │   └── data_collection_fred.py   # FRED 경제 지표 데이터 수집
-│   ├── data_processing/ # 데이터 처리 관련 코드
+│   │   ├── data_collection_yahoo.py  # Yahoo Finance data collection
+│   │   └── data_collection_fred.py   # FRED economic indicators collection
+│   ├── data_processing/ # Data processing code
 │   │   ├── __init__.py
-│   │   └── data_preprocessing.py     # 데이터 전처리
-│   └── main.py          # 메인 실행 스크립트
-└── requirements.txt     # 필요한 패키지 목록
+│   │   └── data_preprocessing.py     # Data preprocessing
+│   └── main.py          # Main execution script
+└── requirements.txt     # Required packages
 ```
 
-## 설치 방법
+## Installation
 
-1. 필요한 패키지 설치:
+1. Install required packages:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-2. FRED API 키 발급:
-   - [FRED API 키 발급 페이지](https://fred.stlouisfed.org/docs/api/api_key.html)에서 API 키를 발급받습니다.
+2. Get FRED API key:
+   - Get your API key from [FRED API Key Page](https://fred.stlouisfed.org/docs/api/api_key.html)
 
-## 사용 방법
+## Usage
 
-### 데이터 수집 및 전처리
+### Data Collection and Preprocessing
 
-다음 명령어로 데이터 수집 및 전처리를 실행합니다:
+Run the following command to collect and preprocess data:
 
 ```bash
 python src/main.py
 ```
 
-이 스크립트는 다음 작업을 수행합니다:
-1. Yahoo Finance에서 주식 데이터 수집 (SOXL, NVDA, XOM)
-2. FRED에서 경제 지표 데이터 수집 (GDP, CPI, 실업률, 연방기금금리 등)
-3. 수집된 데이터 전처리 (정규화, 이상치 처리 등)
+This script performs the following tasks:
+1. Collect stock data from Yahoo Finance (SOXL, NVDA, XOM)
+2. Collect economic indicators from FRED (GDP, CPI, unemployment rate, federal funds rate, etc.)
+3. Preprocess collected data (normalization, outlier handling, etc.)
 
-### 개별 스크립트 실행
+### Running Individual Scripts
 
-각 스크립트를 개별적으로 실행할 수도 있습니다:
+You can also run each script individually:
 
 ```bash
-# Yahoo Finance에서 주식 데이터 수집
+# Collect stock data from Yahoo Finance
 python src/data_collection/data_collection_yahoo.py
 
-# FRED에서 경제 지표 데이터 수집 (API 키 필요)
+# Collect economic indicators from FRED (API key required)
 python src/data_collection/data_collection_fred.py
 
-# 데이터 전처리
+# Preprocess data
 python src/data_processing/data_preprocessing.py
 ```
 
-## 데이터 설명
+## Data Description
 
-### 주식 데이터
-- 일별, 주별, 월별 데이터 포함
-- 각 데이터는 Open, High, Low, Close, Volume 정보 포함
-- 전처리 후 이동평균, 정규화된 가격, 이상치 점수 등 추가
+### Stock Data
+- Includes daily, weekly, and monthly data
+- Each dataset contains Open, High, Low, Close, Volume information
+- After preprocessing, moving averages, normalized prices, outlier scores, etc. are added
 
-### 경제 지표 데이터
-- GDP, CPI, 실업률, 연방기금금리, 고용 등 포함
-- 각 지표는 정규화된 값으로도 제공
+### Economic Indicators
+- Includes GDP, CPI, unemployment rate, federal funds rate, employment, etc.
+- Each indicator is also provided as normalized values
 
-## 참고 사항
+## Notes
 
-- FRED API 키가 없어도 Yahoo Finance 데이터는 수집 가능합니다.
-- 데이터 수집 기간은 기본적으로 10년으로 설정되어 있습니다.
-- 이상치는 제거하지 않고 이상치 점수로 변환하여 리스크 함수에 통합합니다.
+- Yahoo Finance data can be collected without a FRED API key
+- Data collection period is set to 10 years by default
+- Outliers are not removed but converted to outlier scores and integrated into the risk function
 
 # ML-Driven Hybrid Quantitative Trading Strategy 🚀
 
