@@ -1,0 +1,404 @@
+---
+title: "Comprehensive Daily P_Risk Testing & Optimization"
+author: "Ji"
+date: "2025-03-15"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(quantmod)
+library(zoo)
+library(xts)
+library(dplyr)
+library(ParBayesianOptimization)
+library(ggplot2)
+library(scales)
+
+symbols <- c("CLS.TO", "SOXL", "NVDA", "XOM")
+stock_list <- list()
+
+cat("=== [1] Download daily data ===\n")
+
+for(sym in symbols){
+  cat("   →", sym, "...\n")
+
+  daily_xts <- tryCatch({
+    getSymbols(sym, from="2010-01-01", to="2025-12-31", auto.assign=FALSE)
+  }, error=function(e){
+    warning(paste("Fail to get data for", sym, e$message))
+    NULL
+  })
+
+  if(!is.null(daily_xts)){
+    adj <- Ad(daily_xts)
+    colnames(adj) <- "AdjClose"
+    adj <- na.omit(adj)
+    stock_list[[sym]] <- adj
+  } else {
+    stock_list[[sym]] <- NULL
+  }
+}
+
+str(stock_list)
+cat("\n=== [2] Define helper functions (normalized) ===\n")
+
+sigma <- function(x) 1/(1+exp(-x))
+
+calc_var <- function(returns, window_size=6, p=0.05){
+  rollapply(returns, width=window_size, FUN=function(x){
+    if(all(is.na(x))) return(NA)
+    quantile(x, probs=p, na.rm=TRUE)
+  }, fill=NA, align="right")
+}
+
+calc_outlier <- function(returns, window_size=6){
+  rollapply(returns, width=window_size, FUN=function(x){
+    if(all(is.na(x))) return(NA)
+    mu <- mean(x, na.rm=TRUE)
+    sg <- sd(x, na.rm=TRUE)
+    lx <- tail(x,1)
+    if(is.na(sg)||sg==0) 0 else abs(lx - mu)/sg
+  }, fill=NA, align="right")
+}
+
+calc_atr <- function(prices, window_size=6){
+  rollapply(prices, width=window_size, FUN=function(x){
+    mx <- max(x, na.rm=TRUE)
+    mn <- min(x, na.rm=TRUE)
+    mx - mn
+  }, fill=NA, align="right")
+}
+
+compute_risk_signal <- function(sym, lambda_Risk=1, window_size=6){
+  df <- stock_list[[sym]]
+  if(is.null(df)) return(NULL)
+
+  log_ret <- diff(log(df$AdjClose))
+  log_ret[is.na(log_ret)] <- 0
+
+  var_vals     <- calc_var(log_ret, window_size)
+  outlier_vals <- calc_outlier(log_ret, window_size)
+  atr_vals     <- calc_atr(df$AdjClose, window_size)
+
+  valid_idx <- index(log_ret)
+  if(length(var_vals)!=length(valid_idx)) return(NULL)
+
+  x1 <- scale(var_vals - atr_vals)
+  x2 <- scale(outlier_vals)
+
+  risk_xts <- xts(cbind(x1, x2), order.by=valid_idx)
+  colnames(risk_xts) <- c("x1","x2")
+
+  risk_xts$P_Risk <- sigma(lambda_Risk * risk_xts$x1 + risk_xts$x2 + 1)
+  risk_xts
+}
+
+evaluate_daily_risk <- function(sym, lambda_Risk=1, window_size=6, threshold=0.7){
+  df <- stock_list[[sym]]
+  if(is.null(df)) return(NA)
+
+  risk_xts <- compute_risk_signal(sym, lambda_Risk, window_size)
+  if(is.null(risk_xts)) return(NA)
+
+  position <- ifelse(risk_xts$P_Risk > threshold, 1, 0)
+  shifted_pos <- lag(position,1)
+  shifted_pos[is.na(shifted_pos)] <- 0
+
+  log_ret_xts <- diff(log(df$AdjClose))
+  log_ret_xts[is.na(log_ret_xts)] <- 0
+
+  merged <- merge(shifted_pos, log_ret_xts, all=FALSE)
+  merged$strategy_ret <- merged[,2]*merged[,1]
+
+  if(all(merged$strategy_ret==0)) return(NA)
+  sr <- mean(merged$strategy_ret)/sd(merged$strategy_ret)
+  sr
+}
+
+evaluate_daily_risk_partial <- function(sym, lambda_Risk=1, window_size=6){
+  df <- stock_list[[sym]]
+  if(is.null(df)) return(NA)
+
+  risk_xts <- compute_risk_signal(sym, lambda_Risk, window_size)
+  if(is.null(risk_xts)) return(NA)
+
+  shifted_pos <- lag(risk_xts$P_Risk, 1)
+  shifted_pos[is.na(shifted_pos)] <- 0
+
+  log_ret_xts <- diff(log(df$AdjClose))
+  log_ret_xts[is.na(log_ret_xts)] <- 0
+
+  merged <- merge(shifted_pos, log_ret_xts, all=FALSE)
+  merged$strategy_ret <- merged[,2]*merged[,1]
+
+  if(all(merged$strategy_ret==0)) return(NA)
+  sr <- mean(merged$strategy_ret)/sd(merged$strategy_ret)
+  sr
+}
+
+plot_strategy_returns <- function(sym, lambda_Risk, window_size, threshold=0.7, partial=FALSE){
+  df <- stock_list[[sym]]
+  risk_xts <- compute_risk_signal(sym, lambda_Risk, window_size)
+  log_ret_xts <- diff(log(df$AdjClose))
+  log_ret_xts[is.na(log_ret_xts)] <- 0
+
+  if(partial){
+    shifted_pos <- lag(risk_xts$P_Risk, 1)
+  } else {
+    shifted_pos <- lag(ifelse(risk_xts$P_Risk > threshold, 1, 0), 1)
+  }
+  shifted_pos[is.na(shifted_pos)] <- 0
+
+  merged <- merge(shifted_pos, log_ret_xts, all=FALSE)
+  merged$strategy_ret <- merged[,2]*merged[,1]
+  merged$cum_ret <- cumsum(merged$strategy_ret)
+
+  ggplot(data=fortify.zoo(merged), aes(x=Index, y=cum_ret)) +
+    geom_line(color="blue") +
+    labs(title=paste(sym, "Cumulative Return"), y="Cumulative Return", x="Date") +
+    theme_minimal()
+}
+
+plot_prisk_histogram <- function(sym, lambda_Risk, window_size){
+  risk_xts <- compute_risk_signal(sym, lambda_Risk, window_size)
+  df <- data.frame(P_Risk=coredata(risk_xts$P_Risk))
+  ggplot(df, aes(x=P_Risk)) +
+    geom_histogram(fill="skyblue", color="black", bins=30) +
+    labs(title=paste(sym, "P_Risk Distribution"), x="P_Risk", y="Count") +
+    theme_minimal()
+}
+
+cat("\n=== Visualization for all combinations ===\n")
+
+lambda_vals <- c(0.5, 1.0, 1.5, 2.0)
+window_vals <- c(5, 10, 20)
+
+best_params <- data.frame()
+
+for(sym in symbols){
+  best_score <- -Inf
+  best_comb <- c(NA, NA)
+  for(lmb in lambda_vals){
+    for(win in window_vals){
+      score <- evaluate_daily_risk_partial(sym, lambda_Risk=lmb, window_size=win)
+      if(!is.na(score) && score > best_score){
+        best_score <- score
+        best_comb <- c(lmb, win)
+      }
+    }
+  }
+  cat("\nBest for", sym, ": lambda=", best_comb[1], ", window=", best_comb[2], " => Sharpe=", best_score, "\n")
+  best_params <- rbind(best_params, data.frame(Symbol=sym, Lambda=best_comb[1], Window=best_comb[2], Score=best_score))
+}
+
+print(best_params)
+```
+
+
+
+```{r, include=FALSE} 
+# 최적화된 파라미터 기반 시각화
+best_params <- data.frame(
+  Symbol = c("CLS.TO", "SOXL", "NVDA", "XOM"),
+  Lambda = c(0.5, 2.0, 1.0, 1.5),
+  Window = c(20, 5, 20, 10)
+)
+
+for(i in 1:nrow(best_params)){
+  sym <- best_params$Symbol[i]
+  lmb <- best_params$Lambda[i]
+  win <- best_params$Window[i]
+
+  cat("\n→ [Best] Plot for:", sym, "λ=", lmb, ", win=", win, "\n")
+  print(plot_strategy_returns(sym, lambda_Risk=lmb, window_size=win, threshold=0.2, partial=FALSE))
+  print(plot_strategy_returns(sym, lambda_Risk=lmb, window_size=win, partial=TRUE))
+  print(plot_prisk_histogram(sym, lambda_Risk=lmb, window_size=win))
+}
+print(best_params)
+
+
+```
+
+```{r, include=FALSE}
+plot_buy_and_hold <- function(sym){
+  df <- stock_list[[sym]]
+  log_ret <- diff(log(df$AdjClose))
+  log_ret <- na.omit(log_ret)
+  cum_ret <- cumsum(log_ret)
+  
+  df_plot <- data.frame(Date = index(log_ret), Return = cum_ret)
+  ggplot(df_plot, aes(x = Date, y = Return)) +
+    geom_line(color="black") +
+    labs(title = paste(sym, "Buy and Hold Return"), y = "Cumulative Return") +
+    theme_minimal()
+}
+evaluate_all_strategies <- function(sym, lambda, window){
+  df <- stock_list[[sym]]
+  risk_xts <- compute_risk_signal(sym, lambda, window)
+  log_ret <- diff(log(df$AdjClose))
+  log_ret <- na.omit(log_ret)
+
+  # Threshold
+  pos_th <- lag(ifelse(risk_xts$P_Risk > 0.2, 1, 0), 1)
+  pos_th[is.na(pos_th)] <- 0
+  strat_th <- merge(pos_th, log_ret, all=FALSE)
+  strat_th$ret <- strat_th[,1] * strat_th[,2]
+
+  # Partial
+  pos_pa <- lag(risk_xts$P_Risk, 1)
+  pos_pa[is.na(pos_pa)] <- 0
+  strat_pa <- merge(pos_pa, log_ret, all=FALSE)
+  strat_pa$ret <- strat_pa[,1] * strat_pa[,2]
+
+  # Buy & Hold
+  sr_bh <- mean(log_ret)/sd(log_ret)
+  sr_th <- mean(strat_th$ret)/sd(strat_th$ret)
+  sr_pa <- mean(strat_pa$ret)/sd(strat_pa$ret)
+
+  cum_th <- sum(strat_th$ret)
+  cum_pa <- sum(strat_pa$ret)
+  cum_bh <- sum(log_ret)
+
+  data.frame(Symbol=sym,
+             Sharpe_Threshold = sr_th,
+             Sharpe_Partial = sr_pa,
+             Sharpe_BuyHold = sr_bh,
+             Return_Threshold = cum_th,
+             Return_Partial = cum_pa,
+             Return_BuyHold = cum_bh)
+}
+res_all <- data.frame()
+for(i in 1:nrow(best_params)){
+  row <- best_params[i,]
+  res <- evaluate_all_strategies(row$Symbol, row$Lambda, row$Window)
+  res_all <- rbind(res_all, res)
+}
+print(res_all)
+
+```
+
+
+
+``` {r test, include=FALSE}
+# 평가 함수 (이미 정의했으면 생략 가능)
+evaluate_strategy_stats <- function(sym, lambda_Risk, window_size, threshold=0.2, partial=FALSE){
+  df <- stock_list[[sym]]
+  risk_xts <- compute_risk_signal(sym, lambda_Risk, window_size)
+  log_ret_xts <- diff(log(df$AdjClose))
+  log_ret_xts[is.na(log_ret_xts)] <- 0
+
+  if(partial){
+    shifted_pos <- lag(risk_xts$P_Risk, 1)
+  } else {
+    shifted_pos <- lag(ifelse(risk_xts$P_Risk > threshold, 1, 0), 1)
+  }
+  shifted_pos[is.na(shifted_pos)] <- 0
+
+  merged <- merge(shifted_pos, log_ret_xts, all=FALSE)
+  colnames(merged) <- c("position", "log_ret")
+  merged$strategy_ret <- merged$position * merged$log_ret
+
+  # Sharpe Ratio
+  sharpe <- mean(merged$strategy_ret) / sd(merged$strategy_ret)
+
+  # Win/Loss
+  wins <- merged$strategy_ret[merged$strategy_ret > 0]
+  losses <- merged$strategy_ret[merged$strategy_ret < 0]
+  win_rate <- length(wins) / (length(wins) + length(losses))
+  win_loss_ratio <- if(length(losses)==0) NA else mean(wins) / abs(mean(losses))
+
+  # Max Drawdown
+  merged$cum_return <- cumsum(merged$strategy_ret)
+  drawdown <- merged$cum_return - cummax(merged$cum_return)
+  max_dd <- min(drawdown)
+
+  return(data.frame(
+    Symbol = sym,
+    Lambda = lambda_Risk,
+    Window = window_size,
+    Sharpe = round(sharpe, 4),
+    WinRate = round(win_rate, 4),
+    WinLoss = round(win_loss_ratio, 4),
+    MaxDrawdown = round(max_dd, 4)
+  ))
+}
+
+```
+
+```{r, include=FALSE}
+# 최적 파라미터
+best_params <- data.frame(
+  Symbol = c("CLS.TO", "SOXL", "NVDA", "XOM"),
+  Lambda = c(0.5, 2.0, 1.0, 1.5),
+  Window = c(20, 5, 20, 10)
+)
+
+# 결과 저장
+eval_results <- data.frame()
+
+for(i in 1:nrow(best_params)){
+  sym <- best_params$Symbol[i]
+  lmb <- best_params$Lambda[i]
+  win <- best_params$Window[i]
+
+  cat("\n== Evaluate:", sym, "λ=", lmb, ", window=", win, "==\n")
+  res <- evaluate_strategy_stats(sym, lambda_Risk = lmb, window_size = win, threshold=0.2)
+  print(res)
+  eval_results <- rbind(eval_results, res)
+}
+
+# 전체 결과 출력
+print(eval_results)
+
+
+```
+
+
+```{r, include=FALSE}
+save_prisk_signals <- function(){
+  result_df <- data.frame(Date = NULL)
+
+  for (i in seq_along(symbols)) {
+    sym <- symbols[i]
+    lmb <- c(0.5, 2.0, 1.0, 1.5)[i]
+    win <- c(20, 5, 20, 10)[i]
+
+    cat("Computing P_Risk for", sym, "...\n")
+    risk_xts <- compute_risk_signal(sym, lambda_Risk=lmb, window_size=win)
+
+    prisk_df <- data.frame(Date = index(risk_xts), P_Risk = coredata(risk_xts$P_Risk))
+    colnames(prisk_df)[2] <- sym
+
+    if (i == 1) {
+      result_df <- prisk_df
+    } else {
+      result_df <- merge(result_df, prisk_df, by="Date", all=TRUE)
+    }
+  }
+
+  # 명시적 경로 지정 (사용자 홈 디렉토리)
+  save_path <- "/Users/jisunghan/daily_prisk_signals.csv"
+  write.csv(result_df, save_path, row.names=FALSE)
+  cat("Saved to", save_path, "\n")
+}
+
+save_prisk_signals()
+
+```
+
+Symbol Lambda Window Sharpe WinRate WinLoss MaxDrawdown
+1 CLS.TO    0.5     20 0.0238  0.5202  0.9939     -1.5761
+2   SOXL    2.0      5 0.0252  0.5390  0.9212     -1.3060
+3   NVDA    1.0     20 0.0519  0.5331  1.0217     -1.0887
+4    XOM    1.5     10 0.0270  0.5084  1.0475     -0.5637
+Looking at the Sharpe Ratio, all symbols show values below 0.06, which indicates that although the strategies may generate returns, the volatility is quite high. In other words, the risk-adjusted returns are low. Among all, NVDA stands out with the highest Sharpe Ratio of 0.0519, meaning it offers the most efficient returns relative to risk.
+
+For WinRate and Win/Loss Ratio, all symbols have WinRates ranging between 50% and 54%, suggesting that the strategies are not significantly better than random chance. However, NVDA and XOM have a Win/Loss Ratio greater than 1, which means that even though the WinRate isn’t particularly high, the average gain on winning trades is larger than the average loss. Specifically, NVDA not only has a decent WinRate but also tends to win more when it does win, making it a relatively profitable setup.
+
+Max Drawdown provides insight into the worst-case scenario. CLS.TO and SOXL experienced large drawdowns, losing more than half of the capital during peak-to-trough periods, which points to higher risk exposure. On the other hand, XOM shows the smallest drawdown at -0.56, making it the least risky asset among the four.
+
+In summary, NVDA appears to be the most stable and efficient performer in terms of risk-adjusted return and reward-to-risk balance. XOM is the most conservative and safest in terms of capital preservation. CLS.TO and SOXL, while having high participation in trades, show lower efficiency and higher risk, suggesting room for improvement or more defensive parameter tuning.

@@ -1,0 +1,293 @@
+---
+title: "Optimized P_Econ"
+author: "Dong Wang"
+date: "2025-04-01"
+output: 
+  pdf_document:
+    extra_dependencies: ["xcolor", "amssymb", "tensor", "fancyhdr"]
+    latex_engine: xelatex
+papersize: a4
+fontsize: 11pt
+geometry: margin = 1.5cm
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+\  
+
+
+# Data Collection
+
+```{r}
+library(tseries)
+library(zoo)
+library(quantmod)
+library(TTR)
+library(PerformanceAnalytics)
+library(xts)
+```
+
+## GDP Data
+
+```{r}
+# GDP Data
+getSymbols("GDP", src = "FRED", from = "2010-01-01", to = "2024-12-31")
+gdp_df <- data.frame(date = index(GDP), GDP = coredata(GDP))
+monthly_dates <- seq(from = min(gdp_df$date), to = max(gdp_df$date), by = "month")
+
+# Interpolating quarterly GDP to monthly
+gdp_interp <- approx(x = gdp_df$date, y = gdp_df$GDP, xout = monthly_dates, method = "linear")
+
+gdp_monthly_xts <- xts(gdp_interp$y, order.by = as.Date(gdp_interp$x))
+colnames(gdp_monthly_xts) <- "GDP"
+str(gdp_monthly_xts)
+head(gdp_monthly_xts)
+```
+
+```{r}
+# Covering the last 2 values of GDP data to make its length align with those of others
+last_date <- index(gdp_monthly_xts)[nrow(gdp_monthly_xts)]  # Last date
+next_dates <- seq(from = last_date, by = "month", length.out = 3)[-1]  # Next 2 months
+
+extended_gdp_xts <- xts(rep(tail(gdp_monthly_xts, 1), length(next_dates)), order.by = next_dates)
+colnames(extended_gdp_xts) <- "GDP"
+
+gdp_monthly_xts <- rbind(gdp_monthly_xts, extended_gdp_xts)
+```
+
+## Interest Rate Data
+
+```{r}
+# Interest Rate Data (10-Year Treasury Rate)
+getSymbols("DGS10", src = "FRED", from = "2010-01-01", to = "2024-12-31", periodicity = "monthly")
+
+# Converting daily data to monthly
+DGS10_monthly <- to.monthly(DGS10, indexAt = "lastof", OHLC = FALSE)
+head(DGS10_monthly)
+names(DGS10_monthly) <- "DGS10_monthly"
+```
+
+```{r}
+# Index Adjustment
+index(DGS10_monthly) <- index(gdp_monthly_xts)
+
+# Checking if indices match
+identical(index(gdp_monthly_xts), index(DGS10_monthly))
+```
+
+\newpage
+
+# Definition & Visualization of P_Econ
+
+```{r}
+# Sigmoid function
+sigma <- function(x) {1 / (1 + exp(-x))}
+```
+
+```{r, warning=FALSE}
+# Merging the 2 series in P_Econ
+merged_xts_gdp_DGS10 <- merge(gdp_monthly_xts, DGS10_monthly, join = "inner")
+colnames(merged_xts_gdp_DGS10) <- c("GDP", "DGS10")
+
+# Computing the difference
+merged_xts_gdp_DGS10$Diff <- merged_xts_gdp_DGS10$GDP - merged_xts_gdp_DGS10$DGS10
+
+# Standardizing the difference
+merged_xts_gdp_DGS10$Diff_Standardized <- scale(merged_xts_gdp_DGS10$Diff)
+P_Econ_DGS10 = sigma(merged_xts_gdp_DGS10$Diff_Standardized)
+
+# Visualization of P_Econ
+plot.xts(P_Econ_DGS10, main = "P_Econ", ylim = c(0, 1), col = "blue", lwd = 2)
+```
+
+\newpage
+
+# Optimizations of Lambdas for Each Asset
+
+```{r}
+# Range for lambda
+lambda_values <- seq(0.1, 10, by = 0.1)
+```
+
+## NVDA
+
+```{r}
+NVDA <- get.hist.quote(instrument = "NVDA",
+                       start = "2010-01-01",
+                       end = "2024-12-31",
+                       quote = "AdjClose",
+                       compression = "m")
+NVDA <- zoo(NVDA, order.by = as.Date(time(NVDA)))
+```
+
+```{r}
+score_list_NVDA <- data.frame()
+
+for (lambda in lambda_values)
+{
+  # Returns & Trading signals
+  P_Econ <- sigma(lambda * merged_xts_gdp_DGS10$Diff_Standardized)
+  ret <- diff(log(NVDA))
+  signals <- P_Econ[-1]
+  
+  # Trading strategy
+  strategy_ret <- ifelse(signals > 0.3, ret, ifelse(signals < 0.1, -ret, 0))
+  
+  # Sharpe Ratio, Win/Loss Ratio, & Score
+  sharpe <- as.numeric(SharpeRatio.annualized(strategy_ret, scale = 12, geometric = FALSE))
+  wins <- sum(strategy_ret > 0, na.rm = TRUE)
+  losses <- sum(strategy_ret < 0, na.rm = TRUE)
+  win_loss <- ifelse(losses == 0, wins, wins/losses)
+  score <- sharpe + win_loss
+  
+  # Storing in List
+  score_list_NVDA <- rbind(score_list_NVDA, data.frame(Lambda = lambda, 
+                                                       Sharpe = sharpe, 
+                                                       WinLoss = win_loss, 
+                                                       Score = score))
+}
+
+# Finding the lambda value such that score is optimized
+best_row <- score_list_NVDA[which.max(score_list_NVDA$Score), ]
+print(best_row)
+```
+
+\newpage
+
+## SOXL
+
+```{r}
+SOXL <- get.hist.quote(instrument = "SOXL",
+                       start = "2010-01-01",
+                       end = "2024-12-31",
+                       quote = "AdjClose",
+                       compression = "m")
+SOXL <- zoo(SOXL, order.by = as.Date(time(SOXL)))
+```
+
+```{r}
+score_list_SOXL <- data.frame()
+
+for (lambda in lambda_values)
+{
+  # Returns & Trading signals
+  P_Econ <- sigma(lambda * merged_xts_gdp_DGS10$Diff_Standardized)
+  ret <- diff(log(SOXL))
+  signals <- P_Econ[-1]
+  
+  # Trading strategy
+  strategy_ret <- ifelse(signals > 0.4, ret, ifelse(signals < 0.2, -ret, 0))
+  
+  # Sharpe Ratio, Win/Loss Ratio, & Score
+  sharpe <- as.numeric(SharpeRatio.annualized(strategy_ret, scale = 12, geometric = FALSE))
+  wins <- sum(strategy_ret > 0, na.rm = TRUE)
+  losses <- sum(strategy_ret < 0, na.rm = TRUE)
+  win_loss <- ifelse(losses == 0, wins, wins/losses)
+  score <- sharpe + win_loss
+  
+  # Storing in List
+  score_list_SOXL <- rbind(score_list_SOXL, data.frame(Lambda = lambda, 
+                                                       Sharpe = sharpe, 
+                                                       WinLoss = win_loss, 
+                                                       Score = score))
+}
+
+# Finding the lambda value such that score is optimized
+best_row <- score_list_SOXL[which.max(score_list_SOXL$Score), ]
+print(best_row)
+```
+
+\newpage
+
+## XOM
+
+```{r}
+XOM <- get.hist.quote(instrument = "XOM",
+                      start = "2010-01-01",
+                      end = "2024-12-31",
+                      quote = "AdjClose",
+                      compression = "m")
+XOM <- zoo(XOM, order.by = as.Date(time(XOM)))
+```
+
+```{r}
+score_list_XOM <- data.frame()
+
+for (lambda in lambda_values)
+{
+  # Returns & Trading signals
+  P_Econ <- sigma(lambda * merged_xts_gdp_DGS10$Diff_Standardized)
+  ret <- diff(log(XOM))
+  signals <- P_Econ[-1]
+  
+  # Trading strategy
+  strategy_ret <- ifelse(signals > 0.7, ret, ifelse(signals < 0.01, -ret, 0))
+  
+  # Sharpe Ratio, Win/Loss Ratio, & Score
+  sharpe <- as.numeric(SharpeRatio.annualized(strategy_ret, scale = 12, geometric = FALSE))
+  wins <- sum(strategy_ret > 0, na.rm = TRUE)
+  losses <- sum(strategy_ret < 0, na.rm = TRUE)
+  win_loss <- ifelse(losses == 0, wins, wins/losses)
+  score <- sharpe + win_loss
+  
+  # Storing in List
+  score_list_XOM <- rbind(score_list_XOM, data.frame(Lambda = lambda, 
+                                                     Sharpe = sharpe, 
+                                                     WinLoss = win_loss, 
+                                                     Score = score))
+}
+
+# Finding the lambda value such that score is optimized
+best_row <- score_list_XOM[which.max(score_list_XOM$Score), ]
+print(best_row)
+```
+
+\newpage
+
+## CLS.TO
+
+```{r}
+CLS.TO <- get.hist.quote(instrument = "CLS.TO",
+                         start = "2010-01-01",
+                         end = "2024-12-31",
+                         quote = "AdjClose",
+                         compression = "m")
+CLS.TO <- zoo(CLS.TO, order.by = as.Date(time(CLS.TO)))
+```
+
+```{r}
+score_list_CLS.TO <- data.frame()
+
+for (lambda in lambda_values)
+{
+  # Returns & Trading signals
+  P_Econ <- sigma(lambda * merged_xts_gdp_DGS10$Diff_Standardized)
+  ret <- diff(log(CLS.TO))
+  signals <- P_Econ[-1]
+  
+  # Trading strategy
+  strategy_ret <- ifelse(signals > 0.99, ret, ifelse(signals < 0.01, -ret, 0))
+  
+  # Sharpe Ratio, Win/Loss Ratio, & Score
+  sharpe <- as.numeric(SharpeRatio.annualized(strategy_ret, scale = 12, geometric = FALSE))
+  wins <- sum(strategy_ret > 0, na.rm = TRUE)
+  losses <- sum(strategy_ret < 0, na.rm = TRUE)
+  win_loss <- ifelse(losses == 0, wins, wins/losses)
+  score <- sharpe + win_loss
+  
+  # Storing in List
+  score_list_CLS.TO <- rbind(score_list_CLS.TO, data.frame(Lambda = lambda, 
+                                                     Sharpe = sharpe, 
+                                                     WinLoss = win_loss, 
+                                                     Score = score))
+}
+
+# Finding the lambda value such that score is optimized
+best_row <- score_list_CLS.TO[which.max(score_list_CLS.TO$Score), ]
+print(best_row)
+```
+
+

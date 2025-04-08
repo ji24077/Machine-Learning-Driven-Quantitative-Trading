@@ -1,0 +1,165 @@
+---
+title: "Final Hybrid Signal"
+date: "2025-03-20"
+output: 
+  pdf_document:
+    extra_dependencies: ["xcolor", "amssymb", "tensor", "fancyhdr"]
+    latex_engine: xelatex
+papersize: a4
+fontsize: 11pt
+geometry: margin = 1.5cm
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(xts)
+library(zoo)
+```
+
+# 1. Import f_technical datasets for each stock
+
+```{r}
+files <- list(
+  XOM = "XOM_f_technical.csv",
+  SOXL = "SOXL_f_technical.csv",
+  NVDA = "NVDA_f_technical.csv",
+  CLS_TO = "CLS.TO_f_technical.csv"
+)
+
+# Read and store data frames
+f_technical_list <- lapply(files, read.csv)
+
+# Function to read and convert CSV to xts
+read_to_xts <- function(filepath) {
+  # Read the CSV with row names
+  df <- read.csv(filepath, row.names = 1)
+  
+  # Convert row names to Date (no need for custom format since it's standard)
+  date_index <- as.Date(rownames(df))
+  
+  # Create xts object
+  df_xts <- xts(df, order.by = date_index)
+  
+  return(df_xts)
+}
+
+# Process all files
+f_technical_xts <- lapply(files, read_to_xts)
+```
+
+\newpage
+
+# 2. Import P_Econ data
+
+```{r}
+P_Econ_DGS10 <- read.csv("P_Econ_DGS10.csv", 
+                         row.names = 1)
+P_Econ_FEDFUNDS <- read.csv("P_Econ_FEDFUNDS.csv", 
+                            row.names = 1)
+
+# Convert to xts
+P_Econ_DGS10_xts <- xts(P_Econ_DGS10, 
+                        order.by = as.Date(rownames(P_Econ_DGS10)))
+P_Econ_FEDFUNDS_xts <- xts(P_Econ_FEDFUNDS$P_Econ, 
+                           order.by = as.Date(rownames(P_Econ_FEDFUNDS)))
+```
+
+\newpage
+
+# 3. Merge signals and compute final hybrid signal
+
+```{r}
+# Define weights (adjust as needed)
+w1 <- 0.4  # weight for P_MA
+w2 <- 0.4  # weight for P_Risk
+w3 <- 0.2  # weight for P_Econ
+
+# Function to merge and compute f_hybrid for a stock
+compute_fhybrid <- function(stock_xts, P_Econ_xts, stock_name) {
+  
+  # Merge the P_MA, P_Risk from stock_xts with P_Econ_xts
+  combined_xts <- merge(stock_xts[, c("P_MA", "P_Risk")], 
+                        P_Econ_xts, join = "inner")
+  
+  # Rename columns for clarity
+  colnames(combined_xts) <- c("P_MA", "P_Risk", "P_Econ")
+  
+  # Compute f_hybrid
+  combined_xts$f_hybrid <- (w1 * combined_xts$P_MA) +
+    (w2 * combined_xts$P_Risk) +
+    (w3 * combined_xts$P_Econ)
+  
+  return(combined_xts)
+}
+
+# Apply to stocks (using P_Econ_DGS10 here, can swap with P_Econ_FEDFUNDS_xts)
+f_hybrid_results <- lapply(names(f_technical_xts), function(stock) {
+  compute_fhybrid(f_technical_xts[[stock]], P_Econ_DGS10_xts, stock)
+})
+
+# Assign names to the list
+names(f_hybrid_results) <- names(f_technical_xts)
+```
+
+\newpage
+
+# 4. Combine all results for further analysis or export
+
+```{r, message=FALSE}
+# Export hybrid signals for each stock to CSV files
+output_directory <- "C:/Users/Dong Wang/Desktop/STAD70/STAD70_FinalProject" #please change to your own direction
+
+for (stock in names(f_hybrid_results)) {
+  output_filename <- paste0(output_directory, stock, "_f_hybrid.csv")
+  
+  # Write to CSV
+  write.zoo(f_hybrid_results[[stock]], file = output_filename, sep = ",")
+  
+  cat("Saved:", output_filename, "\n")
+}
+```
+
+\newpage
+
+# 5. Visualization
+
+```{r, warning=FALSE}
+par(mfrow = c(2, 2))
+
+plot(f_hybrid_results$XOM$f_hybrid,
+     main = "Final Hybrid Signal for XOM",
+     col = "blue",
+     lwd = 2,
+     ylab = "Hybrid Signal",
+     xlab = "Date")
+
+plot(f_hybrid_results$SOXL$f_hybrid,
+     main = "Final Hybrid Signal for SOXL",
+     col = "blue",
+     lwd = 2,
+     ylab = "Hybrid Signal",
+     xlab = "Date")
+
+plot(f_hybrid_results$NVDA$f_hybrid,
+     main = "Final Hybrid Signal for NVDA",
+     col = "blue",
+     lwd = 2,
+     ylab = "Hybrid Signal",
+     xlab = "Date")
+
+plot(f_hybrid_results$CLS_TO$f_hybrid,
+     main = "Final Hybrid Signal for CLS_TO",
+     col = "blue",
+     lwd = 2,
+     ylab = "Hybrid Signal",
+     xlab = "Date")
+```
+
+

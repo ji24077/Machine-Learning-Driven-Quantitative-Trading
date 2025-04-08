@@ -1,0 +1,319 @@
+---
+title: "Optimized P_MA list and graphs.pdf"
+author: "Tianyu Zhang"
+date: "2025-03-29"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Test for NVDA data
+```{r}
+library(tseries)
+library(zoo)
+library(quantmod)
+library(TTR)
+
+symbol <- "NVDA"
+stock_data <- get.hist.quote(instrument = symbol,
+                             start = "2010-01-01",
+                             end = "2024-12-31",
+                             quote = "AdjClose",
+                             compression = "m")
+stock_data <- zoo(stock_data, order.by = as.Date(time(stock_data)))
+colnames(stock_data) <- "AdjClose"
+
+# MA
+ma_short <- rollmean(stock_data$AdjClose, k = 10, fill = NA, align = "right")
+ma_long  <- rollmean(stock_data$AdjClose, k = 30, fill = NA, align = "right")
+diff_ma  <- scale(ma_short - ma_long)
+
+# DIFF_MA:
+plot(diff_ma, type = "l", col = "blue", main = "diff_ma (scaled): NVDA")
+
+```
+
+```{r}
+sigma <- function(x) {1 / (1 + exp(-x))}
+
+lambda1 <- 0.1
+lambda2 <- 10
+
+p_ma_01 <- sigma(lambda1 * diff_ma)
+p_ma_10 <- sigma(lambda2 * diff_ma)
+
+plot(p_ma_01, type = "l", col = "blue", main = "compare NVDA P_MA", ylab = "P_MA")
+lines(p_ma_10, col = "red")
+legend("topright", legend = c("lambda = 0.1", "lambda = 10"), col = c("blue", "red"), lty = 1)
+
+```
+We can see there is a difference between lagre and small lambda, the data is valid, next put a pre-retuning stategy for grid search: 
+
+NOTE: We are using X=pre_T_adaptive(same logic as T_adaptive, but it's a easier version only for one model, T_adaptive is more suitable for hypermodel) for each stocks:  
+
+If the signal (P_MA) is greater than X → Go Long (expecting price to rise)  
+
+
+If the signal is less than X-0.2 → Go Short (expecting price to fall)  
+
+
+If the signal is between X-0.2 and X → Hold (no trade; uncertainty zone)  
+
+# Using Grid search oprimazation logic for NVDA:
+```{r}
+library(tseries)
+library(zoo)
+library(quantmod)
+library(TTR)
+library(PerformanceAnalytics)
+library(xts)
+
+symbol <- "NVDA"
+stock_data <- get.hist.quote(instrument = symbol,
+                             start = "2010-01-01",
+                             end = "2024-12-31",
+                             quote = "AdjClose",
+                             compression = "m")
+stock_data <- zoo(stock_data, order.by = as.Date(time(stock_data)))
+colnames(stock_data) <- "AdjClose"
+
+ma_short <- rollmean(stock_data$AdjClose, k = 12, fill = NA, align = "right")
+ma_long  <- rollmean(stock_data$AdjClose, k = 36, fill = NA, align = "right")
+diff_ma  <- scale(ma_short - ma_long)
+
+#sigmoid
+sigma <- function(x) {1 / (1 + exp(-x))}
+
+# Range for lambda
+lambda_values <- seq(0.1, 10, by = 0.1)
+score_list <- data.frame()
+
+for (lambda in lambda_values) {
+  p_ma <- sigma(lambda * diff_ma)
+  valid_index <- which(!is.na(p_ma))
+  
+  df <- data.frame(Date = index(stock_data)[valid_index],
+                   AdjClose = coredata(stock_data$AdjClose)[valid_index],
+                   P_MA = coredata(p_ma[valid_index]))
+  
+  # log return
+  returns <- diff(log(df$AdjClose))
+  signals <- df$P_MA[-1]
+
+  # Trading logic:
+  strategy_returns <- ifelse(signals > 0.46, returns,
+                             ifelse(signals < 0.25, -returns, 0))
+  strategy_returns <- xts(strategy_returns, order.by = df$Date[-1])
+
+  # This step is for checking the data's sufficiency
+  if (length(strategy_returns) < 5 || sd(strategy_returns, na.rm = TRUE) == 0) next
+
+  sharpe <- as.numeric(SharpeRatio.annualized(strategy_returns, scale = 12, geometric = FALSE))
+  wins <- sum(strategy_returns > 0, na.rm = TRUE)
+  losses <- sum(strategy_returns < 0, na.rm = TRUE)
+  win_loss <- ifelse(losses == 0, wins, wins / losses)
+
+  # Keep each sharpe + win_loss score
+  score <- sharpe + win_loss
+  score_list <- rbind(score_list, data.frame(Lambda = lambda, Sharpe = sharpe, WinLoss = win_loss, Score = score))
+}
+
+# Find the best lambda for NVDA:
+best_row <- score_list[which.max(score_list$Score), ]
+print(score_list)
+print(best_row)
+```
+```{r}
+# plot Lambda vs Score
+plot(score_list$Lambda, score_list$Score, type = "l", col = "blue",
+     main = "Lambda vs Score: NVDA", xlab = "Lambda", ylab = "Score")
+points(best_row$Lambda, best_row$Score, col = "red", pch = 19)
+legend("topright", legend = paste("Best =", round(best_row$Lambda, 2)), col = "red", pch = 19)
+
+```
+
+# Same logic, put SOXL into the loop:
+```{r}
+# Same logic, put SOXL into the code:
+symbol2 <- "SOXL"
+stock_data2 <- get.hist.quote(instrument = symbol2,
+                              start = "2010-01-01",
+                              end = "2024-12-31",
+                              quote = "AdjClose",
+                              compression = "m")
+stock_data2 <- zoo(stock_data2, order.by = as.Date(time(stock_data2)))
+colnames(stock_data2) <- "AdjClose"
+
+ma_short2 <- rollmean(stock_data2$AdjClose, k = 12, fill = NA, align = "right")
+ma_long2  <- rollmean(stock_data2$AdjClose, k = 36, fill = NA, align = "right")
+diff_ma2  <- scale(ma_short2 - ma_long2)
+
+score_list2 <- data.frame()
+for (lambda in lambda_values) {
+  p_ma <- sigma(lambda * diff_ma2)
+  valid_index <- which(!is.na(p_ma))
+  df <- data.frame(Date = index(stock_data2)[valid_index],
+                   AdjClose = coredata(stock_data2$AdjClose)[valid_index],
+                   P_MA = coredata(p_ma[valid_index]))
+  returns <- diff(log(df$AdjClose))
+  signals <- df$P_MA[-1]
+  strategy_returns <- ifelse(signals > 0.35, returns,
+                             ifelse(signals < 0.15, -returns, 0))
+  strategy_returns <- xts(strategy_returns, order.by = df$Date[-1])
+  if (length(strategy_returns) < 5 || sd(strategy_returns, na.rm = TRUE) == 0) next
+  sharpe <- as.numeric(SharpeRatio.annualized(strategy_returns, scale = 12, geometric = FALSE))
+  wins <- sum(strategy_returns > 0)
+  losses <- sum(strategy_returns < 0)
+  win_loss <- ifelse(losses == 0, wins, wins / losses)
+  score <- sharpe + win_loss
+  score_list2 <- rbind(score_list2, data.frame(Symbol = symbol2, Lambda = lambda, Sharpe = sharpe, WinLoss = win_loss, Score = score))
+}
+best2 <- score_list2[which.max(score_list2$Score), ]
+print(score_list2)
+print(best2)
+
+```
+```{r}
+plot(score_list2$Lambda, score_list2$Score, type = "l", col = "blue",
+     main = "Lambda vs Score: SOXL", xlab = "Lambda", ylab = "Score")
+points(best2$Lambda, best2$Score, col = "red", pch = 19)
+legend("topright", legend = paste("Best =", round(best2$Lambda, 2)), col = "red", pch = 19)
+
+```
+
+# Same logic, put XOM into the loop:
+```{r}
+symbol3 <- "XOM"
+stock_data3 <- get.hist.quote(instrument = symbol3,
+                              start = "2010-01-01",
+                              end = "2024-12-31",
+                              quote = "AdjClose",
+                              compression = "m")
+stock_data3 <- zoo(stock_data3, order.by = as.Date(time(stock_data3)))
+colnames(stock_data3) <- "AdjClose"
+
+ma_short3 <- rollmean(stock_data3$AdjClose, k = 12, fill = NA, align = "right")
+ma_long3  <- rollmean(stock_data3$AdjClose, k = 36, fill = NA, align = "right")
+diff_ma3  <- scale(ma_short3 - ma_long3)
+
+score_list3 <- data.frame()
+for (lambda in lambda_values) {
+  p_ma <- sigma(lambda * diff_ma3)
+  valid_index <- which(!is.na(p_ma))
+  df <- data.frame(Date = index(stock_data3)[valid_index],
+                   AdjClose = coredata(stock_data3$AdjClose)[valid_index],
+                   P_MA = coredata(p_ma[valid_index]))
+  returns <- diff(log(df$AdjClose))
+  signals <- df$P_MA[-1]
+  strategy_returns <- ifelse(signals > 0.38, returns,
+                             ifelse(signals < 0.18, -returns, 0))
+  strategy_returns <- xts(strategy_returns, order.by = df$Date[-1])
+  if (length(strategy_returns) < 5 || sd(strategy_returns, na.rm = TRUE) == 0) next
+  sharpe <- as.numeric(SharpeRatio.annualized(strategy_returns, scale = 12, geometric = FALSE))
+  wins <- sum(strategy_returns > 0)
+  losses <- sum(strategy_returns < 0)
+  win_loss <- ifelse(losses == 0, wins, wins / losses)
+  score <- sharpe + win_loss
+  score_list3 <- rbind(score_list3, data.frame(Symbol = symbol3, Lambda = lambda, Sharpe = sharpe, WinLoss = win_loss, Score = score))
+}
+best3 <- score_list3[which.max(score_list3$Score), ]
+print(score_list3)
+print(best3)
+```
+
+```{r}
+plot(score_list3$Lambda, score_list3$Score, type = "l", col = "blue",
+     main = "Lambda vs Score: XOM", xlab = "Lambda", ylab = "Score")
+points(best3$Lambda, best3$Score, col = "red", pch = 19)
+legend("topright", legend = paste("Best =", round(best3$Lambda, 2)), col = "red", pch = 19)
+
+```
+
+# Same logic, put CLS.TO into the loop:
+```{r}
+symbol4 <- "CLS.TO"
+stock_data4 <- get.hist.quote(instrument = symbol4,
+                              start = "2010-01-01",
+                              end = "2024-12-31",
+                              quote = "AdjClose",
+                              compression = "m")
+stock_data4 <- zoo(stock_data4, order.by = as.Date(time(stock_data4)))
+colnames(stock_data4) <- "AdjClose"
+
+ma_short4 <- rollmean(stock_data4$AdjClose, k = 12, fill = NA, align = "right")
+ma_long4  <- rollmean(stock_data4$AdjClose, k = 36, fill = NA, align = "right")
+diff_ma4  <- scale(ma_short4 - ma_long4)
+
+score_list4 <- data.frame()
+for (lambda in lambda_values) {
+  p_ma <- sigma(lambda * diff_ma4)
+  valid_index <- which(!is.na(p_ma))
+  df <- data.frame(Date = index(stock_data4)[valid_index],
+                   AdjClose = coredata(stock_data4$AdjClose)[valid_index],
+                   P_MA = coredata(p_ma[valid_index]))
+  returns <- diff(log(df$AdjClose))
+  signals <- df$P_MA[-1]
+  strategy_returns <- ifelse(signals > 0.49, returns,
+                             ifelse(signals < 0.29, -returns, 0))
+  strategy_returns <- xts(strategy_returns, order.by = df$Date[-1])
+  if (length(strategy_returns) < 5 || sd(strategy_returns, na.rm = TRUE) == 0) next
+  sharpe <- as.numeric(SharpeRatio.annualized(strategy_returns, scale = 12, geometric = FALSE))
+  wins <- sum(strategy_returns > 0)
+  losses <- sum(strategy_returns < 0)
+  win_loss <- ifelse(losses == 0, wins, wins / losses)
+  score <- sharpe + win_loss
+  score_list4 <- rbind(score_list4, data.frame(Symbol = symbol4, Lambda = lambda, Sharpe = sharpe, WinLoss = win_loss, Score = score))
+}
+best4 <- score_list4[which.max(score_list4$Score), ]
+print(score_list4)
+print(best4)
+```
+
+```{r}
+plot(score_list4$Lambda, score_list4$Score, type = "l", col = "blue",
+     main = "Lambda vs Score: CLS.TO", xlab = "Lambda", ylab = "Score")
+points(best4$Lambda, best4$Score, col = "red", pch = 19)
+legend("topright", legend = paste("Best =", round(best4$Lambda, 2)), col = "red", pch = 19)
+
+```
+# Put a list of all stocks' P_MA:
+```{r}
+# Function of P_MA with best lambda:
+get_pma <- function(stock_data, lambda, short_k = 12, long_k = 36) {
+  ma_short <- rollmean(stock_data$AdjClose, k = short_k, fill = NA, align = "right")
+  ma_long  <- rollmean(stock_data$AdjClose, k = long_k, fill = NA, align = "right")
+  diff_ma  <- scale(ma_short - ma_long)
+  p_ma <- 1 / (1 + exp(-lambda * diff_ma))
+  return(p_ma)
+}
+
+# take best lambda:
+p_ma_nvda <- get_pma(stock_data,     lambda = 0.1)  # NVDA
+p_ma_soxl <- get_pma(stock_data2,    lambda = 0.1)  # SOXL
+p_ma_xom  <- get_pma(stock_data3,    lambda = 1.9)  # XOM
+p_ma_cls  <- get_pma(stock_data4,    lambda = 0.6)  # CLS.TO
+
+pma_list <- list(
+  "CLS.TO" = p_ma_cls,
+  "NVDA"   = p_ma_nvda,
+  "XOM"    = p_ma_xom,
+  "SOXL"   = p_ma_soxl
+)
+
+library(knitr)
+
+# Check the tail of each stocks:
+tail_df <- data.frame(
+  Date    = tail(index(stock_data)),
+  NVDA    = tail(na.omit(p_ma_nvda)),
+  SOXL    = tail(na.omit(p_ma_soxl)),
+  XOM     = tail(na.omit(p_ma_xom)),
+  CLS.TO  = tail(na.omit(p_ma_cls))
+)
+
+kable(tail_df, caption = "Tail of P_MA for Each Stock (Last 6 Months)")
+```
+
+

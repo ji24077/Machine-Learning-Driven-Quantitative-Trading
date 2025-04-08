@@ -1,0 +1,261 @@
+---
+title: "Backtesting"
+author: "Ji Sung"
+date: "2025-03-21"
+output:
+  html_document:
+    toc: true
+    toc_depth: 2
+    theme: cerulean
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Hybrid & Technical Strategy Backtesting
+
+```{r cars}
+library(zoo)
+library(xts)
+library(dplyr)
+library(ggplot2)
+library(PerformanceAnalytics)
+library(quantmod)
+library(readr)
+
+getwd()
+```
+
+### Step 1: Load Hybrid Signal Data
+```{r pressure-hybrid, echo=FALSE}
+# Directly read CSV files
+# Make sure f_hybrid_CLS_TO.csv, f_hybrid_NVDA.csv, f_hybrid_SOXL.csv, f_hybrid_XOM.csv
+# are placed in the same folder as this .Rmd file.
+
+CLS_TO_hybrid <- read.csv("f_hybrid_CLS_TO.csv")
+CLS_TO_hybrid$Date <- as.Date(CLS_TO_hybrid$Date)
+CLS_TO_hybrid_xts <- xts(CLS_TO_hybrid[, c("f_hybrid", "AdjClose")], order.by = CLS_TO_hybrid$Date)
+
+NVDA_hybrid <- read.csv("f_hybrid_NVDA.csv")
+NVDA_hybrid$Date <- as.Date(NVDA_hybrid$Date)
+NVDA_hybrid_xts <- xts(NVDA_hybrid[, c("f_hybrid", "AdjClose")], order.by = NVDA_hybrid$Date)
+
+SOXL_hybrid <- read.csv("f_hybrid_SOXL.csv")
+SOXL_hybrid$Date <- as.Date(SOXL_hybrid$Date)
+SOXL_hybrid_xts <- xts(SOXL_hybrid[, c("f_hybrid", "AdjClose")], order.by = SOXL_hybrid$Date)
+
+XOM_hybrid <- read.csv("f_hybrid_XOM.csv")
+XOM_hybrid$Date <- as.Date(XOM_hybrid$Date)
+XOM_hybrid_xts <- xts(XOM_hybrid[, c("f_hybrid", "AdjClose")], order.by = XOM_hybrid$Date)
+
+hybrid_data_list <- list(
+  CLS_TO = CLS_TO_hybrid_xts,
+  NVDA   = NVDA_hybrid_xts,
+  SOXL   = SOXL_hybrid_xts,
+  XOM    = XOM_hybrid_xts
+)
+
+names(hybrid_data_list) <- c("CLS_TO", "NVDA", "SOXL", "XOM")
+```
+
+### Step 2: Backtesting Function
+```{r 2}
+backtest_strategy <- function(data_xts, threshold = 0.7) {
+  f_signal <- lag(data_xts$f_hybrid)  # Use previous month's signal
+  adj_close <- data_xts$AdjClose
+  returns <- ROC(adj_close, type = "discrete")  # Monthly return
+
+  position <- ifelse(f_signal > threshold, 1, 0)  # If signal > 0.7, invest
+  strategy_returns <- returns * position
+  strategy_returns[is.na(strategy_returns)] <- 0
+  cum_strategy <- cumprod(1 + strategy_returns)
+
+  buy_hold_returns <- returns
+  buy_hold_returns[is.na(buy_hold_returns)] <- 0
+  cum_buy_hold <- cumprod(1 + buy_hold_returns)
+
+  result <- merge(cum_strategy, cum_buy_hold)
+  names(result) <- c("Hybrid_Strategy", "Buy_Hold")
+  return(result)
+}
+```
+
+### Step 3: Run Backtest for All Stocks
+```{r 3}
+backtest_results <- lapply(hybrid_data_list, backtest_strategy)
+```
+
+### Step 4: Plot Results
+```{r 4}
+library(gridExtra)
+
+plot_list <- lapply(names(backtest_results), function(sym) {
+  df <- fortify.zoo(backtest_results[[sym]])
+  ggplot(df, aes(x = Index)) +
+    geom_line(aes(y = Hybrid_Strategy, color = "Hybrid Strategy")) +
+    geom_line(aes(y = Buy_Hold, color = "Buy & Hold")) +
+    labs(title = paste0(sym, " Strategy vs Buy & Hold"),
+         x = "Date", y = "Cumulative Return") +
+    scale_color_manual(values = c("Hybrid Strategy" = "blue", "Buy & Hold" = "black")) +
+    theme_minimal()
+})
+
+# Arrange plots
+do.call(grid.arrange, c(plot_list, ncol=2))
+```
+
+
+## Backtesting for Technical Signal
+
+### Step 1: Load Technical Signal Data
+```{r 5}
+# Directly read CSV files
+# Make sure f_technical_CLS_TO.csv, f_technical_NVDA.csv, f_technical_SOXL.csv, f_technical_XOM.csv
+# are placed in the same folder as this .Rmd file.
+
+CLS_TO_tech <- read.csv("f_technical_CLS_TO.csv")
+CLS_TO_tech$Date <- as.Date(CLS_TO_tech$Date)
+CLS_TO_tech_xts <- xts(CLS_TO_tech[, c("f_technical", "AdjClose")], order.by = CLS_TO_tech$Date)
+
+NVDA_tech <- read.csv("f_technical_NVDA.csv")
+NVDA_tech$Date <- as.Date(NVDA_tech$Date)
+NVDA_tech_xts <- xts(NVDA_tech[, c("f_technical", "AdjClose")], order.by = NVDA_tech$Date)
+
+SOXL_tech <- read.csv("f_technical_SOXL.csv")
+SOXL_tech$Date <- as.Date(SOXL_tech$Date)
+SOXL_tech_xts <- xts(SOXL_tech[, c("f_technical", "AdjClose")], order.by = SOXL_tech$Date)
+
+XOM_tech <- read.csv("f_technical_XOM.csv")
+XOM_tech$Date <- as.Date(XOM_tech$Date)
+XOM_tech_xts <- xts(XOM_tech[, c("f_technical", "AdjClose")], order.by = XOM_tech$Date)
+
+technical_data_list <- list(
+  CLS_TO = CLS_TO_tech_xts,
+  NVDA   = NVDA_tech_xts,
+  SOXL   = SOXL_tech_xts,
+  XOM    = XOM_tech_xts
+)
+
+names(technical_data_list) <- c("CLS_TO", "NVDA", "SOXL", "XOM")
+```
+
+### Step 2: Backtesting Function
+```{r 6}
+library(PerformanceAnalytics)
+library(quantmod)
+
+backtest_f_technical <- function(data_xts, threshold = 0.5) {
+  signal <- ifelse(data_xts$f_technical > threshold, 1, 0)
+  ret <- ROC(data_xts$AdjClose, type = "discrete")
+
+  # Use stats::lag() which works with xts object
+  signal_lag <- stats::lag(signal, k = 1)
+
+  strategy_ret <- ret * signal_lag
+  strategy_ret[is.na(strategy_ret)] <- 0
+  return(strategy_ret)
+}
+```
+
+### Step 3: Run Backtest for All Stocks
+```{r 7}
+strategy_returns_list <- lapply(technical_data_list, backtest_f_technical)
+names(strategy_returns_list) <- c("CLS_TO", "NVDA", "SOXL", "XOM")
+```
+
+### Step 4: Plot Results
+```{r performance, echo=FALSE, fig.width=12, fig.height=8}
+ # 2行×2列
+for (symbol in names(strategy_returns_list)) {
+  charts.PerformanceSummary(
+    strategy_returns_list[[symbol]],
+    main = paste(symbol, "- Strategy Performance (Technical)"),
+    col = "blue",
+    wealth.index = TRUE
+  )
+}
+```
+
+## Test Win/Loss Ratio, Cumulative Return, Sharpe Ratio, Max Drawdown, Win Rate
+```{r 9}
+library(PerformanceAnalytics)
+
+evaluate_strategy <- function(returns_xts) {
+  returns_xts <- na.omit(returns_xts)
+
+  cumulative_return <- Return.cumulative(returns_xts)
+  annualized_return <- Return.annualized(returns_xts)
+  sharpe_ratio <- SharpeRatio.annualized(returns_xts)
+  max_drawdown <- maxDrawdown(returns_xts)
+
+  # Win Rate: 수익이 난 월 비율
+  win_rate <- mean(returns_xts > 0)
+
+  result <- data.frame(
+    Cumulative_Return = round(cumulative_return * 100, 2),
+    Annualized_Return = round(annualized_return * 100, 2),
+    Sharpe_Ratio = round(sharpe_ratio, 2),
+    Max_Drawdown = round(max_drawdown * 100, 2),
+    Win_Rate = round(win_rate * 100, 2)
+  )
+
+  return(result)
+}
+```
+
+### Test each Stock
+```{r 10}
+# Evaluate technical strategy returns
+technical_metrics <- lapply(strategy_returns_list, evaluate_strategy)
+
+# Combine into a single data frame
+technical_metrics_df <- do.call(rbind, technical_metrics)
+rownames(technical_metrics_df) <- names(strategy_returns_list)
+
+# Print results
+print(technical_metrics_df)
+```
+
+### Plotting Monthly Return Distributions
+```{r 11}
+par(mfrow = c(2,2))
+for (symbol in names(strategy_returns_list)) {
+  hist(strategy_returns_list[[symbol]],
+       breaks = 20,
+       main = paste(symbol, "- Monthly Return Distribution"),
+       xlab = "Return",
+       col = "lightblue",
+       border = "white")
+}
+```
+
+### Plotting Win vs Loss
+```{r 12}
+par(mfrow = c(2,2))
+for (symbol in names(strategy_returns_list)) {
+  returns <- strategy_returns_list[[symbol]]
+  win_count <- sum(returns > 0, na.rm = TRUE)
+  loss_count <- sum(returns <= 0, na.rm = TRUE)
+
+  barplot(c(win_count, loss_count),
+          names.arg = c("Win", "Loss"),
+          col = c("green", "red"),
+          main = paste(symbol, "- Win vs Loss"),
+          ylim = c(0, max(win_count, loss_count) + 5))
+}
+```
+
+---
+
+NVDA:\\
+AdjClose = 19586.76 → If the initial capital was 1, this means the strategy grew it to around 195 times, indicating strong returns.\\
+Sharpe Ratio = 1.06 → This is a solid Sharpe ratio, suggesting good performance relative to risk.\\
+Win Rate = 48.60% → Nearly half of the trades were profitable. Overall, this was a successful strategy for NVDA.\\
+Yet, other stocks are too risky or performed poorly.\\
+
+The reason the strategy doesn't perform well is mainly because it's too simple and rigid. In reality, a fixed threshold like 0.5 may not be appropriate for every stock. For instance, a more stable stock might require a higher threshold, like 0.6, to generate reliable buy signals, while a more volatile stock might perform better with a lower threshold, such as 0.4. Also, the scale of the f_technical signal itself can vary across different stocks. Some stocks might always stay within a narrow range like 0.4 to 0.6, which makes a fixed threshold ineffective.
+
+Another limitation is that the strategy does not adapt to changing market conditions. For example, during periods of rising interest rates or economic downturns, the strategy does not adjust its behavior accordingly, leading to poor decisions.
+
+To improve the strategy, we could optimize the threshold for each stock individually using techniques like grid search. Instead of relying on static thresholds, we can consider dynamic signal-based strategies, such as buying only when the signal increases compared to the previous month. Another option is position scaling, where we use the signal value itself as the investment weight, allowing partial positions between 0 and 1. Additionally, incorporating stop-loss or take-profit mechanisms can help prevent excessive drawdowns and improve risk management.
