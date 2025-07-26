@@ -18,6 +18,8 @@
 ---
 ## 🎯 Performance Metrics
 
+<img width="516" height="516" alt="Image" src="https://github.com/user-attachments/assets/15209a38-ea64-4cfb-861d-0301d07f6f02" />
+<img alt="Image" width="516" height="516" src="https://private-user-images.githubusercontent.com/134019237/471042483-eea7ae03-9a97-496e-9d1a-024602b36db8.png?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3NTM1MDUzNzQsIm5iZiI6MTc1MzUwNTA3NCwicGF0aCI6Ii8xMzQwMTkyMzcvNDcxMDQyNDgzLWVlYTdhZTAzLTlhOTctNDk2ZS05ZDFhLTAyNDYwMmIzNmRiOC5wbmc_WC1BbXotQWxnb3JpdGhtPUFXUzQtSE1BQy1TSEEyNTYmWC1BbXotQ3JlZGVudGlhbD1BS0lBVkNPRFlMU0E1M1BRSzRaQSUyRjIwMjUwNzI2JTJGdXMtZWFzdC0xJTJGczMlMkZhd3M0X3JlcXVlc3QmWC1BbXotRGF0ZT0yMDI1MDcyNlQwNDQ0MzRaJlgtQW16LUV4cGlyZXM9MzAwJlgtQW16LVNpZ25hdHVyZT0yNTA3MWQxNWQ4NjkyZWQ3ODgxMThmZjNhNWQyMDM2NWYwOGRhMTEwYzZkNTc0ZDA4N2ZjMmZmM2RmZDcyM2VjJlgtQW16LVNpZ25lZEhlYWRlcnM9aG9zdCJ9.zrBQdblkHJMXy7MTAS8pyK6s7cmcRhYl8PZEEtC32pM">
 
 ### Backtesting Results Summary
 
