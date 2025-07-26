@@ -16,6 +16,30 @@
 - ✅ **Scalable alpha generation** tested on NVDA, SOXL, XOM with realistic transaction costs
 
 ---
+## 🎯 Performance Metrics
+
+
+### Backtesting Results Summary
+
+| Asset  | Strategy      | Sharpe Ratio | Win Rate | Improvement |
+|--------|---------------|-------------|----------|-------------|
+| NVDA   | Optimized     | 0.18        | 58%      | +42% Sharpe |
+|        | Original      | 0.13        | 52%      | +14% Win Rate|
+| SOXL   | Optimized     | 0.19        | 56%      | +58% Sharpe |
+|        | Original      | 0.12        | 49%      | +15% Win Rate|
+| XOM    | Optimized     | 0.16        | 60%      | +45% Sharpe |
+|        | Original      | 0.11        | 53%      | +13% Win Rate|
+| CLS.TO | Optimized     | 0.15        | 57%      | +67% Sharpe |
+|        | Original      | 0.09        | 50%      | +14% Win Rate|
+
+**Key Research Insights:**
+- **Hybrid Superiority**: Incorporating macroeconomic signals (P_Econ) provided additional robustness, particularly for XOM and SOXL which are more sensitive to economic conditions
+- **Signal Quality Sensitivity**: High-volatility stocks like SOXL benefited significantly from hybrid optimization, while trending stocks like NVDA showed less differentiation
+- **Drawdown Reduction**: Optimized models consistently reduced drawdowns across different market phases, enhancing portfolio stability
+- **Probability Scaling**: Tuning the probability scaling parameters (λ) improved the likelihood of successful trades across all assets
+
+---
+
 
 ## 📊 System Architecture & Data Pipeline
 
@@ -211,28 +235,6 @@ python src/data_processing/data_preprocessing.py
 
 ---
 
-## 🎯 Performance Metrics
-
-### Backtesting Results Summary
-
-| Asset  | Strategy      | Sharpe Ratio | Win Rate | Improvement |
-|--------|---------------|-------------|----------|-------------|
-| NVDA   | Optimized     | 0.18        | 58%      | +42% Sharpe |
-|        | Original      | 0.13        | 52%      | +14% Win Rate|
-| SOXL   | Optimized     | 0.19        | 56%      | +58% Sharpe |
-|        | Original      | 0.12        | 49%      | +15% Win Rate|
-| XOM    | Optimized     | 0.16        | 60%      | +45% Sharpe |
-|        | Original      | 0.11        | 53%      | +13% Win Rate|
-| CLS.TO | Optimized     | 0.15        | 57%      | +67% Sharpe |
-|        | Original      | 0.09        | 50%      | +14% Win Rate|
-
-**Key Research Insights:**
-- **Hybrid Superiority**: Incorporating macroeconomic signals (P_Econ) provided additional robustness, particularly for XOM and SOXL which are more sensitive to economic conditions
-- **Signal Quality Sensitivity**: High-volatility stocks like SOXL benefited significantly from hybrid optimization, while trending stocks like NVDA showed less differentiation
-- **Drawdown Reduction**: Optimized models consistently reduced drawdowns across different market phases, enhancing portfolio stability
-- **Probability Scaling**: Tuning the probability scaling parameters (λ) improved the likelihood of successful trades across all assets
-
----
 
 ## 🔬 Research & Development
 

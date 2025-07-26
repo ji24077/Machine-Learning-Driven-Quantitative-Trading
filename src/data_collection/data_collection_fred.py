@@ -1,66 +1,109 @@
+"""
+Federal Reserve Economic Data (FRED) Collection Module
+
+This module collects macroeconomic indicators from the Federal Reserve Economic Data (FRED) API
+for the QuantML trading system. These indicators provide crucial economic context for trading decisions.
+
+Features:
+- Real-time economic indicator retrieval from FRED API
+- Comprehensive macroeconomic data coverage (GDP, CPI, employment, etc.)
+- Automated data validation and error handling
+- Excel format output for downstream processing
+- 10-year historical data collection for sufficient ML training
+
+Economic Indicators Collected:
+- GDP: Real Gross Domestic Product (economic growth)
+- CPI: Consumer Price Index (inflation measure)  
+- UNRATE: Unemployment Rate (labor market health)
+- FEDFUNDS: Federal Funds Rate (monetary policy indicator)
+- PAYEMS: Total Nonfarm Payrolls (employment level)
+- INDPRO: Industrial Production Index (manufacturing activity)
+
+API Requirements:
+- FRED API key (free registration at https://fred.stlouisfed.org/docs/api/api_key.html)
+- Internet connection for real-time data retrieval
+"""
+
 import pandas as pd
 import os
 from fredapi import Fred
 from datetime import datetime, timedelta
 
-# 데이터 저장 디렉토리 생성
+# Create directory for raw economic data storage
 os.makedirs('data/raw', exist_ok=True)
 
-# FRED API 키 설정
-fred_api_key = '793c594fd13b09a517072cc115c1421e'  # API 키 설정 완료
+# FRED API key configuration
+# Note: Replace with your personal API key from FRED registration
+fred_api_key = '793c594fd13b09a517072cc115c1421e'  # API key configured
 
-# FRED API 초기화
+# Initialize FRED API connection with error handling
 try:
     fred = Fred(api_key=fred_api_key)
-    print("FRED API 연결 성공")
+    print("✅ FRED API connection established successfully")
 except Exception as e:
-    print(f"FRED API 연결 실패: {e}")
-    print("API 키를 발급받아 스크립트에 입력해주세요.")
+    print(f"❌ FRED API connection failed: {e}")
+    print("💡 Please obtain your API key from FRED and update the script")
     exit(1)
 
-# 수집할 경제 지표 목록 (문서에서 언급된 지표들)
+# Define economic indicators for comprehensive macroeconomic analysis
+# Each indicator provides unique insights into different economic aspects
 economic_indicators = {
-    'GDP': 'GDP',                  # 실질 GDP
-    'CPIAUCSL': 'CPI',             # 소비자 물가 지수
-    'UNRATE': 'Unemployment',      # 실업률
-    'FEDFUNDS': 'FedRate',         # 연방기금금리
-    'PAYEMS': 'Employment',        # 비농업 고용
-    'INDPRO': 'IndustrialProduction',  # 산업생산지수
+    'GDP': 'GDP',                      # Real GDP - overall economic output
+    'CPIAUCSL': 'CPI',                # Consumer Price Index - inflation measure
+    'UNRATE': 'Unemployment',          # Unemployment Rate - labor market condition
+    'FEDFUNDS': 'FedRate',            # Federal Funds Rate - monetary policy tool
+    'PAYEMS': 'Employment',           # Nonfarm Payrolls - employment level
+    'INDPRO': 'IndustrialProduction', # Industrial Production - manufacturing activity
 }
 
-# 데이터 수집 기간 설정 (10년 데이터)
+# Configure data collection timeframe (10 years for ML model training)
 end_date = datetime.now()
 start_date = end_date - timedelta(days=365*10)
 
-# 모든 경제 지표 데이터를 저장할 DataFrame
+# Initialize DataFrame to store all economic indicators
 all_economic_data = pd.DataFrame()
 
-# 경제 지표별 데이터 수집 및 저장
+# Collect each economic indicator with individual error handling
 for series_id, indicator_name in economic_indicators.items():
-    print(f"{indicator_name} 데이터 수집 중...")
+    print(f"📊 Collecting {indicator_name} data (Series: {series_id})...")
     
     try:
-        # FRED에서 데이터 수집
+        # Retrieve economic data from FRED API
         data = fred.get_series(series_id, start_date, end_date)
         
-        # 데이터 이름 변경
+        # Assign descriptive column name for clarity
         data.name = indicator_name
         
-        # 전체 데이터프레임에 추가
+        # Aggregate all indicators into comprehensive dataset
         if all_economic_data.empty:
             all_economic_data = pd.DataFrame(data)
         else:
             all_economic_data = pd.concat([all_economic_data, pd.DataFrame(data)], axis=1)
         
-        print(f"{indicator_name} 데이터 수집 완료")
+        print(f"✅ {indicator_name} data collected successfully ({len(data)} observations)")
+        
     except Exception as e:
-        print(f"{indicator_name} 데이터 수집 실패: {e}")
+        print(f"❌ Failed to collect {indicator_name} data: {e}")
+        print(f"   Series ID: {series_id} may be unavailable or require different access")
+        continue
 
-# 모든 경제 지표 데이터를 하나의 Excel 파일로 저장
+# Save comprehensive economic dataset if any data was collected
 if not all_economic_data.empty:
-    all_economic_data.to_excel('data/raw/economic_indicators.xlsx')
-    print("모든 경제 지표 데이터 저장 완료: data/raw/economic_indicators.xlsx")
+    output_file = 'data/raw/economic_indicators.xlsx'
+    all_economic_data.to_excel(output_file)
+    print(f"🎉 Economic indicators dataset saved successfully: {output_file}")
+    print(f"📊 Dataset contains {len(all_economic_data.columns)} indicators across {len(all_economic_data)} time periods")
+    
+    # Display dataset summary for verification
+    print("\n📋 Economic Dataset Summary:")
+    for col in all_economic_data.columns:
+        non_null_count = all_economic_data[col].count()
+        date_range = f"{all_economic_data[col].first_valid_index()} to {all_economic_data[col].last_valid_index()}"
+        print(f"   • {col}: {non_null_count} observations ({date_range})")
+        
 else:
-    print("수집된 경제 지표 데이터가 없습니다.")
+    print("⚠️  No economic indicator data was collected successfully")
+    print("💡 Please check your FRED API key and internet connection")
 
-print("경제 지표 데이터 수집 완료!") 
+print("🔄 FRED economic data collection pipeline completed!")
+print("📈 Ready for integration with market data and preprocessing...") 

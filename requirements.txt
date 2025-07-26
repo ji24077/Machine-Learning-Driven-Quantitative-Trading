@@ -1,50 +1,80 @@
-# Core Data Processing
-pandas>=1.5.0
-numpy>=1.21.0
-scipy>=1.9.0
+# ==================================================================================
+# QuantML: Machine Learning-Driven Quantitative Trading System
+# Dependency Requirements File
+# ==================================================================================
+# 
+# This file specifies all Python packages required for the comprehensive
+# machine learning-driven quantitative trading system.
+#
+# Installation: pip install -r requirements.txt
+# Python Version: 3.8+ recommended
+# ==================================================================================
 
-# Financial Data Sources
-yfinance>=0.2.0
-fredapi>=0.5.0
+# Core Data Processing & Scientific Computing
+# ==================================================================================
+pandas>=1.5.0           # High-performance data structures and data analysis tools
+numpy>=1.21.0           # Fundamental package for numerical computing and arrays
+scipy>=1.9.0            # Scientific computing library for optimization and statistics
 
-# News & Sentiment Analysis
-requests>=2.28.0
-textblob>=0.17.1
-newsapi-python>=0.2.6
+# Financial Data Sources & APIs
+# ==================================================================================
+yfinance>=0.2.0         # Yahoo Finance API for market data (OHLCV, indices)
+fredapi>=0.5.0          # Federal Reserve Economic Data API for macroeconomic indicators
 
-# Machine Learning & Optimization
-scikit-learn>=1.1.0
-torch>=1.12.0
-optuna>=3.0.0
-hyperopt>=0.2.7
+# News & Sentiment Analysis Pipeline
+# ==================================================================================
+requests>=2.28.0        # HTTP library for API calls and web data retrieval
+textblob>=0.17.1        # Natural language processing for sentiment analysis
+newsapi-python>=0.2.6   # NewsAPI client for financial news data collection
+
+# Machine Learning & Optimization Frameworks
+# ==================================================================================
+scikit-learn>=1.1.0     # Machine learning library for ensemble models and preprocessing
+torch>=1.12.0           # Deep learning framework for neural network implementations
+optuna>=3.0.0           # Bayesian optimization framework for hyperparameter tuning
+hyperopt>=0.2.7         # Alternative optimization library for parameter search
 
 # Backtesting & Performance Analysis
-vectorbt>=0.25.0
-quantlib>=1.29
+# ==================================================================================
+vectorbt>=0.25.0        # High-performance backtesting and portfolio analysis
+quantlib>=1.29          # Quantitative finance library for risk management
 
-# Visualization & Reporting
-matplotlib>=3.5.0
-seaborn>=0.11.0
-plotly>=5.10.0
+# Data Visualization & Reporting
+# ==================================================================================
+matplotlib>=3.5.0       # Comprehensive plotting library for charts and graphs
+seaborn>=0.11.0         # Statistical data visualization built on matplotlib
+plotly>=5.10.0          # Interactive plotting library for web-based dashboards
 
-# Utilities & Development
-jupyter>=1.0.0
-notebook>=6.4.0
-tqdm>=4.64.0
+# Development & Productivity Tools
+# ==================================================================================
+jupyter>=1.0.0          # Interactive computing environment for research and development
+notebook>=6.4.0         # Web-based notebook interface for Jupyter
+tqdm>=4.64.0            # Progress bars for long-running operations
 
-# Excel & Data I/O
-openpyxl>=3.0.10
-xlrd>=2.0.1
+# Data Input/Output & Format Handling
+# ==================================================================================
+openpyxl>=3.0.10        # Library for reading and writing Excel 2010 xlsx files
+xlrd>=2.0.1             # Library for reading data from Excel files (legacy support)
 
-# Statistical Analysis
-statsmodels>=0.13.0
+# Statistical Analysis & Time Series
+# ==================================================================================
+statsmodels>=0.13.0     # Statistical modeling including regression and time series analysis
+arch>=5.3.0             # ARCH and GARCH models for volatility modeling
 
-# Time Series Analysis
-arch>=5.3.0
+# Alternative Data & Web Scraping (Optional)
+# ==================================================================================
+beautifulsoup4>=4.11.0  # Web scraping library for HTML parsing
+selenium>=4.5.0         # Web browser automation for dynamic content scraping
 
-# Alternative Data (Optional)
-beautifulsoup4>=4.11.0
-selenium>=4.5.0
+# API Rate Limiting & Control
+# ==================================================================================
+ratelimit>=2.2.1        # Decorator for rate limiting API calls to prevent quota exhaustion
 
-# API Rate Limiting
-ratelimit>=2.2.1 
+# ==================================================================================
+# Installation Notes:
+# ==================================================================================
+# 1. Some packages (vectorbt, quantlib) may require additional system dependencies
+# 2. For GPU acceleration with PyTorch, install CUDA-compatible version separately
+# 3. News API and FRED API require free registration for API keys
+# 4. Optional packages can be excluded for minimal installation
+# ================================================================================== 
