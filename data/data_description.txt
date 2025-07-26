@@ -1,0 +1,34 @@
+Data Directory Structure - QuantML Trading System
+=================================================
+
+RAW DATA FILES:
+- economic_indicators.xlsx: FRED economic data (GDP, CPI, unemployment, etc.)
+- NVDA_data.xlsx: NVIDIA stock market data (daily/weekly/monthly)
+- SOXL_data.xlsx: Semiconductor ETF market data (daily/weekly/monthly)  
+- XOM_data.xlsx: Exxon Mobil stock market data (daily/weekly/monthly)
+- TNX_data.xlsx: 10-Year Treasury yield data
+- VIX_data.xlsx: Volatility index data
+
+PROCESSED DATA FILES:
+- *_daily_processed.csv: Daily market data with technical indicators
+- *_weekly_processed.csv: Weekly market data with technical indicators
+- *_monthly_processed.csv: Monthly market data with technical indicators
+- economic_indicators_processed.csv: Normalized economic indicators
+- TNX_sheet1_processed.csv: Processed Treasury yield data
+- VIX_sheet1_processed.csv: Processed volatility data
+
+FEATURES ADDED DURING PROCESSING:
+- Moving averages (MA_5, MA_20, MA_50)
+- Price returns and normalized prices (0-1 scale)
+- Volatility measures (High-Low range)
+- Outlier scores for risk management
+- Normalized economic indicators for ML models
+
+DATA SOURCES:
+- Yahoo Finance API: Market data (OHLCV)
+- FRED API: Economic indicators
+- Processing: Python pandas with feature engineering
+
+USAGE:
+- Raw data: Input for preprocessing pipeline
+- Processed data: Ready for ML model training and backtesting 

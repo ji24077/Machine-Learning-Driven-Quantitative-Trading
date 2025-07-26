@@ -1,0 +1,29 @@
+Raw Data Files - QuantML Trading System
+=======================================
+
+MARKET DATA (Yahoo Finance API):
+- NVDA_data.xlsx: NVIDIA Corporation stock data
+- SOXL_data.xlsx: Semiconductor sector leveraged ETF data  
+- XOM_data.xlsx: Exxon Mobil Corporation stock data
+- TNX_data.xlsx: 10-Year Treasury Constant Maturity Rate
+- VIX_data.xlsx: CBOE Volatility Index (market fear gauge)
+
+ECONOMIC DATA (FRED API):
+- economic_indicators.xlsx: Federal Reserve economic indicators
+  * GDP: Real Gross Domestic Product
+  * CPI: Consumer Price Index (inflation)
+  * Unemployment Rate: Labor market health
+  * Federal Funds Rate: Monetary policy tool
+  * Employment: Total nonfarm payrolls
+  * Industrial Production: Manufacturing activity
+
+FILE FORMAT:
+- Excel files with multiple sheets (Daily, Weekly, Monthly)
+- Standard OHLCV columns: Open, High, Low, Close, Volume, Adj Close
+- Date range: 10+ years of historical data
+- Update frequency: Real-time via API collection scripts
+
+USAGE:
+- Input for data preprocessing pipeline
+- Source data for feature engineering
+- Backup of original unmodified data 

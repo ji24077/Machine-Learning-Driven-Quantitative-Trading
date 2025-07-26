@@ -1,0 +1,40 @@
+Processed Data Files - QuantML Trading System
+============================================
+
+ENHANCED MARKET DATA:
+- NVDA_*_processed.csv: NVIDIA data with ML features
+- SOXL_*_processed.csv: Semiconductor ETF data with ML features
+- XOM_*_processed.csv: Exxon Mobil data with ML features
+- TNX_sheet1_processed.csv: Treasury yield with features
+- VIX_sheet1_processed.csv: Volatility index with features
+
+TIMEFRAMES:
+- *_daily_processed.csv: Daily timeframe analysis
+- *_weekly_processed.csv: Weekly timeframe analysis  
+- *_monthly_processed.csv: Monthly timeframe analysis
+
+ENGINEERED FEATURES:
+- Returns: Period-over-period price changes
+- NormalizedPrice: Min-max scaled prices (0-1 range)
+- MA_5, MA_20, MA_50: Moving averages for trend analysis
+- Volatility: High-Low range (ATR proxy)
+- ReturnsOutlierScore: Z-score based outlier detection
+- VolatilityOutlierScore: Risk measurement for position sizing
+
+ECONOMIC DATA:
+- economic_indicators_processed.csv: Normalized economic indicators
+  * All indicators scaled to 0-1 range for ML compatibility
+  * Forward-fill and backward-fill for missing values
+  * Additional normalized columns for each indicator
+
+FILE FORMAT:
+- CSV format with datetime index
+- Ready for direct pandas import
+- Compatible with scikit-learn and PyTorch
+- Optimized for ML model training and backtesting
+
+USAGE:
+- Direct input for ML models (ensemble logistic regression)
+- Backtesting and performance analysis
+- Signal generation for trading strategies
+- Risk management and position sizing 
